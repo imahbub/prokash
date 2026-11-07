@@ -1,2 +1,18 @@
-plan.md
+# Environment and Secrets
+.env
+.env.*
+.dev.vars
 agent-env.txt
+plan.md
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+.wrangler/
+.astro/
+
+# OS files
+.DS_Store
+Thumbs.db

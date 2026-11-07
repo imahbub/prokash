@@ -1,0 +1,232 @@
+---
+import type { Article } from '../lib/supabase';
+
+export interface Props {
+  article: Article;
+  featured?: boolean;
+}
+
+const { article, featured = false } = Astro.props;
+
+const categoryLabels: Record<string, string> = {
+  national: 'বাংলাদেশ',
+  international: 'আন্তর্জাতিক',
+  economy: 'অর্থনীতি',
+  tech: 'প্রযুক্তি',
+  sports: 'খেলাধুলা',
+  opinion: 'মতামত',
+};
+
+const categoryName = categoryLabels[article.category] || article.category;
+
+function formatRelativeTime(dateString: string): string {
+  try {
+    const diff = (Date.now() - new Date(dateString).getTime()) / 1000;
+    if (diff < 3600) {
+      const mins = Math.max(1, Math.floor(diff / 60));
+      return `${mins} মিনিট আগে`;
+    }
+    if (diff < 86400) {
+      const hours = Math.floor(diff / 3600);
+      return `${hours} ঘণ্টা আগে`;
+    }
+    const days = Math.floor(diff / 86400);
+    return `${days} দিন আগে`;
+  } catch {
+    return '';
+  }
+}
+
+const timeAgo = formatRelativeTime(article.published_at || article.created_at);
+---
+
+<article class={`article-card ${featured ? 'featured' : ''}`}>
+  <div class="card-meta">
+    <span class="badge category-badge">{categoryName}</span>
+    <span class="meta-dot">•</span>
+    <span class="source-badge">
+      সূত্র: <a href={article.original_url} target="_blank" rel="noopener noreferrer nofollow" class="source-link">{article.source_name}</a>
+    </span>
+    {timeAgo && (
+      <>
+        <span class="meta-dot">•</span>
+        <span class="time-meta">{timeAgo}</span>
+      </>
+    )}
+  </div>
+
+  <h2 class="card-title">
+    <a href={`/news/${article.slug}`} class="title-link">
+      {article.title_bn}
+    </a>
+  </h2>
+
+  {article.image_url && (
+    <div class="card-image-wrap">
+      <img
+        src={article.image_url}
+        alt={article.title_bn}
+        loading="lazy"
+        decoding="async"
+        class="card-image"
+        onerror="this.parentElement.style.display='none'"
+      />
+    </div>
+  )}
+
+  <p class="card-summary">
+    {article.summary_bn}
+  </p>
+
+  {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && (
+    <div class="takeaways-box">
+      <div class="takeaways-title">মূল তথ্য:</div>
+      <ul class="takeaways-list">
+        {article.bullets_bn.map((point: string) => (
+          <li>{point}</li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  <div class="card-footer">
+    <a href={`/news/${article.slug}`} class="read-full-link">
+      বিস্তারিত পড়ুন →
+    </a>
+    <a
+      href={article.original_url}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      class="original-outbound-link"
+    >
+      মূল প্রতিবেদন ({article.source_name}) ↗
+    </a>
+  </div>
+</article>
+
+<style>
+  .article-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .article-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .meta-dot {
+    color: var(--border-color);
+  }
+  .source-link {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .source-link:hover {
+    color: var(--text-main);
+  }
+  .card-title {
+    font-size: 1.35rem;
+    line-height: 1.45;
+    margin: 0 0 0.85rem 0;
+    font-weight: 700;
+  }
+  .title-link {
+    color: var(--text-main);
+    text-decoration: none;
+  }
+  .title-link:hover {
+    color: var(--primary);
+  }
+  .card-image-wrap {
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    overflow: hidden;
+    max-height: 280px;
+    background: var(--bg-surface);
+  }
+  .card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-summary {
+    color: var(--text-body);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    margin: 0 0 1rem 0;
+  }
+  .takeaways-box {
+    background: var(--bg-surface);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 6px 6px 0;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .takeaways-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--primary);
+    margin-bottom: 0.4rem;
+  }
+  .takeaways-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--text-body);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  .takeaways-list li {
+    margin-bottom: 0.35rem;
+  }
+  .takeaways-list li:last-child {
+    margin-bottom: 0;
+  }
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    font-size: 0.9rem;
+  }
+  .read-full-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .read-full-link:hover {
+    text-decoration: underline;
+  }
+  .original-outbound-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+  .original-outbound-link:hover {
+    color: var(--text-main);
+    text-decoration: underline;
+  }
+</style>

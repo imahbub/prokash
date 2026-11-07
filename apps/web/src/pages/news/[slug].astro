@@ -1,0 +1,352 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { supabase, type Article } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+
+let article: Article | null = null;
+let fetchError: string | null = null;
+
+try {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .single();
+
+  if (error || !data) {
+    fetchError = 'সংবাদটি পাওয়া যায়নি';
+  } else {
+    article = data as Article;
+  }
+} catch (err: any) {
+  fetchError = err.message || 'ডাটাবেজ সংযোগে সমস্যা হয়েছে';
+}
+
+if (!article && !fetchError) {
+  return Astro.redirect('/404');
+}
+
+const categoryLabels: Record<string, string> = {
+  national: 'বাংলাদেশ',
+  international: 'আন্তর্জাতিক',
+  economy: 'অর্থনীতি',
+  tech: 'প্রযুক্তি',
+  sports: 'খেলাধুলা',
+  opinion: 'মতামত',
+};
+
+const categoryName = article ? categoryLabels[article.category] || article.category : '';
+
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('bn-BD', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+---
+
+{article ? (
+  <BaseLayout
+    title={article.title_bn}
+    description={article.summary_bn}
+    image={article.image_url}
+    type="article"
+    currentCategory={article.category}
+    publishedTime={article.published_at}
+  >
+    <article class="article-detail">
+      <div class="article-header">
+        <div class="meta-row">
+          <a href={`/category/${article.category}`} class="badge category-badge">
+            {categoryName}
+          </a>
+          <span class="meta-dot">•</span>
+          <span class="time-meta">{formatDate(article.published_at || article.created_at)}</span>
+        </div>
+
+        <h1 class="article-title">{article.title_bn}</h1>
+
+        <div class="source-attribution-card">
+          <span class="attribution-label">সংবাদের মূল উৎস:</span>
+          <a
+            href={article.original_url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            class="attribution-link"
+          >
+            {article.source_name} ↗
+          </a>
+          <span class="attribution-note">(মূল প্রতিবেদনের সম্পূর্ণ স্বত্ব সংশ্লিষ্ট প্রকাশকের)</span>
+        </div>
+      </div>
+
+      {article.image_url && (
+        <figure class="featured-image-wrap">
+          <img
+            src={article.image_url}
+            alt={article.title_bn}
+            class="featured-image"
+            loading="eager"
+            onerror="this.parentElement.style.display='none'"
+          />
+        </figure>
+      )}
+
+      {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && (
+        <section class="key-takeaways" aria-label="মূল তথ্যাবলি">
+          <h2 class="takeaways-heading">📌 সংক্ষেপ ও প্রধান তথ্য:</h2>
+          <ul class="takeaways-list">
+            {article.bullets_bn.map((point: string) => (
+              <li>{point}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="summary-body" aria-label="সংবাদ সারসংক্ষেপ">
+        <h2 class="section-heading">বস্তুনিষ্ঠ সারসংক্ষেপ</h2>
+        <p class="summary-text">{article.summary_bn}</p>
+      </section>
+
+      <div class="outbound-cta-box">
+        <div class="cta-text">
+          ঘটনার সম্পূর্ণ বিবরণ ও পটভূমি জানতে মূল সংবাদমাধ্যমে প্রকাশিত পুরো প্রতিবেদনটি পড়ুন:
+        </div>
+        <a
+          href={article.original_url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          class="cta-button"
+        >
+          {article.source_name}-এ বিস্তারিত প্রতিবেদন পড়ুন ↗
+        </a>
+      </div>
+
+      <div class="share-box">
+        <span class="share-label">সংবাদ লিংক শেয়ার করুন:</span>
+        <button
+          onclick="navigator.clipboard.writeText(window.location.href); alert('লিংক কপি করা হয়েছে!');"
+          class="copy-link-btn"
+        >
+          🔗 লিংক কপি করুন
+        </button>
+      </div>
+    </article>
+  </BaseLayout>
+) : (
+  <BaseLayout title="সংবাদটি পাওয়া যায়নি — প্রকাশ">
+    <div class="not-found-card">
+      <h1>সংবাদটি খুঁজে পাওয়া যায়নি</h1>
+      <p>{fetchError || 'অনুরোধকৃত সংবাদটি সরানো হয়েছে অথবা সংযোগে ত্রুটি দেখা দিয়েছে।'}</p>
+      <a href="/" class="back-home-link">← হোমপেজে ফিরে যান</a>
+    </div>
+  </BaseLayout>
+)}
+
+<style>
+  .article-detail {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  }
+  @media (max-width: 640px) {
+    .article-detail {
+      padding: 1.25rem;
+    }
+  }
+  .article-header {
+    margin-bottom: 1.5rem;
+  }
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .meta-dot {
+    color: var(--border-color);
+  }
+  .article-title {
+    font-size: 1.85rem;
+    line-height: 1.4;
+    margin: 0 0 1rem 0;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+  @media (max-width: 640px) {
+    .article-title {
+      font-size: 1.45rem;
+    }
+  }
+  .source-attribution-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    background: var(--bg-main);
+    padding: 0.6rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .attribution-label {
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .attribution-link {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .attribution-link:hover {
+    text-decoration: underline;
+  }
+  .attribution-note {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+  .featured-image-wrap {
+    margin: 0 0 1.5rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-main);
+  }
+  .featured-image {
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
+    display: block;
+  }
+  .key-takeaways {
+    background: var(--badge-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.75rem;
+  }
+  .takeaways-heading {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--badge-text);
+    margin: 0 0 0.75rem 0;
+  }
+  .takeaways-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--text-main);
+    font-size: 1.02rem;
+    line-height: 1.7;
+  }
+  .takeaways-list li {
+    margin-bottom: 0.5rem;
+  }
+  .takeaways-list li:last-child {
+    margin-bottom: 0;
+  }
+  .summary-body {
+    margin-bottom: 2rem;
+  }
+  .section-heading {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.6rem 0;
+    color: var(--text-main);
+  }
+  .summary-text {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--text-body);
+    margin: 0;
+  }
+  .outbound-cta-box {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .cta-text {
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+  .cta-button {
+    display: inline-block;
+    background: var(--primary);
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  }
+  .cta-button:hover {
+    background: var(--primary-hover);
+  }
+  .share-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+    font-size: 0.88rem;
+  }
+  .share-label {
+    color: var(--text-muted);
+  }
+  .copy-link-btn {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .copy-link-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .not-found-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 3rem 1.5rem;
+    text-align: center;
+  }
+  .back-home-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+</style>

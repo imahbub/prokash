@@ -1,0 +1,119 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import { supabase, type Article } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+
+const categoryLabels: Record<string, string> = {
+  national: 'বাংলাদেশ',
+  international: 'আন্তর্জাতিক',
+  economy: 'অর্থনীতি',
+  tech: 'প্রযুক্তি',
+  sports: 'খেলাধুলা',
+  opinion: 'মতামত',
+};
+
+const categoryName = categoryLabels[slug || ''] || 'সংবাদ';
+
+// Set edge caching headers
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+
+let articles: Article[] = [];
+let fetchError: string | null = null;
+
+try {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('category', slug)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    fetchError = error.message;
+  } else {
+    articles = (data as Article[]) || [];
+  }
+} catch (err: any) {
+  fetchError = err.message || 'ডাটাবেজ সংযোগে সমস্যা হয়েছে';
+}
+---
+
+<BaseLayout
+  title={`${categoryName} — প্রকাশ`}
+  description={`${categoryName} বিভাগের সর্বশেষ বস্তুনিষ্ঠ সংবাদের সংক্ষেপ।`}
+  currentCategory={slug}
+>
+  <div class="feed-header">
+    <h2 class="feed-title">{categoryName}</h2>
+    <p class="feed-subtitle">{categoryName} বিভাগের গুরুত্বপূর্ণ সংবাদ ও তথ্য</p>
+  </div>
+
+  {fetchError ? (
+    <div class="state-card error-card">
+      <p class="state-title">সংবাদ লোড করতে সমস্যা হয়েছে</p>
+      <p class="state-desc">{fetchError}</p>
+    </div>
+  ) : articles.length === 0 ? (
+    <div class="state-card empty-card">
+      <div class="empty-icon">📂</div>
+      <p class="state-title">{categoryName} বিভাগে এখনও কোনো সংবাদ নেই</p>
+      <p class="state-desc">নতুন সংবাদ আসলে এখানে স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।</p>
+    </div>
+  ) : (
+    <div class="articles-list">
+      {articles.map((article, idx) => (
+        <ArticleCard article={article} featured={idx === 0} />
+      ))}
+    </div>
+  )}
+</BaseLayout>
+
+<style>
+  .feed-header {
+    margin-bottom: 1.5rem;
+  }
+  .feed-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+  }
+  .feed-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .state-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 3rem 1.5rem;
+    text-align: center;
+  }
+  .empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .state-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-main);
+  }
+  .state-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0 auto;
+    max-width: 450px;
+  }
+  .error-card {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #991b1b;
+  }
+  .error-card .state-title {
+    color: #991b1b;
+  }
+</style>

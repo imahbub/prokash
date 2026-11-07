@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import { supabase, type Article } from '../lib/supabase';
+
+// Set edge caching headers: 5 mins edge cache, 1 hour stale-while-revalidate
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+
+let articles: Article[] = [];
+let fetchError: string | null = null;
+
+try {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    fetchError = error.message;
+  } else {
+    articles = (data as Article[]) || [];
+  }
+} catch (err: any) {
+  fetchError = err.message || 'ডাটাবেজ সংযোগে সমস্যা হয়েছে';
+}
+---
+
+<BaseLayout
+  title="প্রকাশ — সংবেদনশীলতাহীন নিরপেক্ষ সংবাদ"
+  description="দৈনিক গুরুত্বপূর্ণ সংবাদের বস্তুনিষ্ঠ ও সংক্ষিপ্ত সারসংক্ষেপ। ক্লিকবাইট এবং সেনসেশনালিজম ছাড়া সংবাদ পড়ুন।"
+  currentCategory="all"
+>
+  <div class="feed-header">
+    <h2 class="feed-title">তাজা সংবাদ</h2>
+    <p class="feed-subtitle">সর্বশেষ সংগৃহীত ও সারসংক্ষেপকৃত গুরুত্বপূর্ণ সংবাদ</p>
+  </div>
+
+  {fetchError ? (
+    <div class="state-card error-card">
+      <p class="state-title">সংবাদ লোড করতে সমস্যা হয়েছে</p>
+      <p class="state-desc">{fetchError}</p>
+    </div>
+  ) : articles.length === 0 ? (
+    <div class="state-card empty-card">
+      <div class="empty-icon">📰</div>
+      <p class="state-title">এখনও কোনো সংবাদ প্রকাশিত হয়নি</p>
+      <p class="state-desc">আমাদের স্বয়ংক্রিয় ইঞ্জিন সংবাদ সংগ্রহ ও প্রক্রিয়াকরণ শুরু করছে। অনুগ্রহ করে কিছুক্ষণ পর পুনরায় পরীক্ষা করুন।</p>
+    </div>
+  ) : (
+    <div class="articles-list">
+      {articles.map((article, idx) => (
+        <ArticleCard article={article} featured={idx === 0} />
+      ))}
+    </div>
+  )}
+</BaseLayout>
+
+<style>
+  .feed-header {
+    margin-bottom: 1.5rem;
+  }
+  .feed-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+  }
+  .feed-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .state-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 3rem 1.5rem;
+    text-align: center;
+  }
+  .empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .state-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-main);
+  }
+  .state-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0 auto;
+    max-width: 450px;
+  }
+  .error-card {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #991b1b;
+  }
+  .error-card .state-title {
+    color: #991b1b;
+  }
+</style>

@@ -1,0 +1,44 @@
+---
+export interface Props {
+  title?: string;
+  description?: string;
+  image?: string | null;
+  canonicalUrl?: string;
+  type?: 'website' | 'article';
+  publishedTime?: string;
+}
+
+const {
+  title = 'প্রকাশ — সংবেদনশীলতাহীন নিরপেক্ষ সংবাদ',
+  description = 'দৈনিক গুরুত্বপূর্ণ সংবাদের প্রমিত বাংলায় বস্তুনিষ্ঠ ও সংক্ষিপ্ত সারসংক্ষেপ।',
+  image = 'https://prokash.news/og-default.png',
+  canonicalUrl = Astro.url.href,
+  type = 'website',
+  publishedTime,
+} = Astro.props;
+
+const siteTitle = title.includes('প্রকাশ') ? title : `${title} | প্রকাশ`;
+---
+
+<!-- Primary Meta Tags -->
+<title>{siteTitle}</title>
+<meta name="title" content={siteTitle} />
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrl} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:title" content={siteTitle} />
+<meta property="og:description" content={description} />
+{image && <meta property="og:image" content={image} />}
+<meta property="og:site_name" content="প্রকাশ — Prokash" />
+<meta property="og:locale" content="bn_BD" />
+{publishedTime && <meta property="article:published_time" content={publishedTime} />}
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content={canonicalUrl} />
+<meta property="twitter:title" content={siteTitle} />
+<meta property="twitter:description" content={description} />
+{image && <meta property="twitter:image" content={image} />}

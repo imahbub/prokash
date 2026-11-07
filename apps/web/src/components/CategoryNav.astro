@@ -1,0 +1,76 @@
+---
+export interface Props {
+  currentCategory?: string;
+}
+
+const { currentCategory = 'all' } = Astro.props;
+
+const categories = [
+  { slug: 'all', name: 'সকল', path: '/' },
+  { slug: 'national', name: 'বাংলাদেশ', path: '/category/national' },
+  { slug: 'international', name: 'আন্তর্জাতিক', path: '/category/international' },
+  { slug: 'economy', name: 'অর্থনীতি', path: '/category/economy' },
+  { slug: 'tech', name: 'প্রযুক্তি', path: '/category/tech' },
+  { slug: 'sports', name: 'খেলাধুলা', path: '/category/sports' },
+  { slug: 'opinion', name: 'মতামত', path: '/category/opinion' },
+];
+---
+
+<nav class="category-nav" aria-label="সংবাদ বিভাগ">
+  <div class="nav-container">
+    {categories.map((cat) => {
+      const isActive = currentCategory === cat.slug;
+      return (
+        <a
+          href={cat.path}
+          class={`nav-link ${isActive ? 'active' : ''}`}
+        >
+          {cat.name}
+        </a>
+      );
+    })}
+  </div>
+</nav>
+
+<style>
+  .category-nav {
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+  }
+  .nav-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-container::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-link {
+    display: inline-block;
+    padding: 0.75rem 0.85rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .nav-link:hover {
+    color: var(--text-main);
+  }
+  .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+  }
+</style>
