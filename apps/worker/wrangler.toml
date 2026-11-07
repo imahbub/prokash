@@ -7,6 +7,6 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["*/20 * * * *"]
 
 [vars]
-PUBLIC_SITE_URL = "http://localhost:4321"
+PUBLIC_SITE_URL = "https://prokash.pages.dev"
 SUPABASE_URL = "https://iswjsedffboyytxrkdpz.supabase.co"
 FB_PAGE_ID = "1482028081653288"
