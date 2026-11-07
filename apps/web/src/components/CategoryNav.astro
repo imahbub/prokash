@@ -6,17 +6,17 @@ export interface Props {
 const { currentCategory = 'all' } = Astro.props;
 
 const categories = [
-  { slug: 'all', name: 'সকল', path: '/' },
+  { slug: 'all', name: 'সকল সংবাদ', path: '/' },
   { slug: 'national', name: 'বাংলাদেশ', path: '/category/national' },
   { slug: 'international', name: 'আন্তর্জাতিক', path: '/category/international' },
-  { slug: 'economy', name: 'অর্থনীতি', path: '/category/economy' },
-  { slug: 'tech', name: 'প্রযুক্তি', path: '/category/tech' },
+  { slug: 'economy', name: 'অর্থনীতি ও বাণিজ্য', path: '/category/economy' },
+  { slug: 'tech', name: 'বিজ্ঞান ও প্রযুক্তি', path: '/category/tech' },
   { slug: 'sports', name: 'খেলাধুলা', path: '/category/sports' },
-  { slug: 'opinion', name: 'মতামত', path: '/category/opinion' },
+  { slug: 'opinion', name: 'মতামত ও বিশ্লেষণ', path: '/category/opinion' },
 ];
 ---
 
-<nav class="category-nav" aria-label="সংবাদ বিভাগ">
+<nav class="category-nav" aria-label="সংবাদ বিভাগ সূচি">
   <div class="nav-container">
     {categories.map((cat) => {
       const isActive = currentCategory === cat.slug;
@@ -34,43 +34,67 @@ const categories = [
 
 <style>
   .category-nav {
-    border-bottom: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-hairline);
+    border-bottom: 2px solid var(--border-dark);
     background: var(--bg-surface);
     position: sticky;
     top: 0;
-    z-index: 20;
-    backdrop-filter: blur(8px);
+    z-index: 30;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   }
+
   .nav-container {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0 1.25rem;
     display: flex;
-    gap: 0.5rem;
+    justify-content: center;
+    gap: 1.5rem;
     overflow-x: auto;
     white-space: nowrap;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
+
+  @media (max-width: 900px) {
+    .nav-container {
+      justify-content: flex-start;
+      gap: 0.75rem;
+    }
+  }
+
   .nav-container::-webkit-scrollbar {
     display: none;
   }
+
   .nav-link {
     display: inline-block;
-    padding: 0.75rem 0.85rem;
-    color: var(--text-muted);
+    padding: 0.65rem 0.5rem;
+    color: var(--text-headline);
     text-decoration: none;
     font-size: 0.95rem;
-    font-weight: 500;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s ease, border-color 0.15s ease;
-  }
-  .nav-link:hover {
-    color: var(--text-main);
-  }
-  .nav-link.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
     font-weight: 600;
+    font-family: var(--font-serif);
+    position: relative;
+    transition: color 0.15s ease;
+  }
+
+  .nav-link:hover {
+    color: var(--accent-crimson);
+  }
+
+  .nav-link.active {
+    color: var(--accent-crimson);
+    font-weight: 700;
+  }
+
+  .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-crimson);
   }
 </style>

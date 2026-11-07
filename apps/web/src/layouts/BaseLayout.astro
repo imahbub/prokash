@@ -19,6 +19,24 @@ const {
   type = 'website',
   publishedTime,
 } = Astro.props;
+
+// Format current date in Bengali
+const now = new Date();
+const daysBn = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
+const monthsBn = [
+  'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+  'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+];
+const toBengaliDigits = (num: number | string) => {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/[0-9]/g, d => digits[parseInt(d)]);
+};
+
+const dayName = daysBn[now.getDay()];
+const dateDay = toBengaliDigits(now.getDate());
+const monthName = monthsBn[now.getMonth()];
+const yearNumber = toBengaliDigits(now.getFullYear());
+const formattedTodayBn = `${dayName}, ${dateDay} ${monthName} ${yearNumber}`;
 ---
 
 <!doctype html>
@@ -28,11 +46,11 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Google Fonts: Hind Siliguri for high-clarity Bengali typography -->
+    <!-- Google Fonts: Noto Serif Bengali (for NYT classic editorial look) & Hind Siliguri (clean reading) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
       rel="stylesheet"
     />
 
@@ -45,45 +63,96 @@ const {
     />
   </head>
   <body>
-    <header class="site-header">
-      <div class="header-inner">
-        <a href="/" class="brand-link">
-          <h1 class="brand-title">প্রকাশ</h1>
-          <span class="brand-tagline">সংবেদনশীলতাহীন নিরপেক্ষ সংবাদ</span>
-        </a>
-        <div class="header-actions">
-          <a href="/rss.xml" class="rss-link" title="RSS ফিড">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Top Utility Bar: Date, Edition, Weather / Notice -->
+    <div class="edition-bar">
+      <div class="edition-inner">
+        <div class="edition-left">
+          <span class="edition-date">{formattedTodayBn}</span>
+          <span class="edition-divider">|</span>
+          <span class="edition-badge">ঢাকা সংস্করণ</span>
+        </div>
+        <div class="edition-center">
+          <span class="edition-motto">“সংবেদনশীলতামুক্ত নিরপেক্ষ সাংবাদিকতা”</span>
+        </div>
+        <div class="edition-right">
+          <a href="/rss.xml" class="edition-link" title="RSS ফিড">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 11a9 9 0 0 1 9 9"></path>
               <path d="M4 4a16 16 0 0 1 16 16"></path>
               <circle cx="5" cy="19" r="1"></circle>
             </svg>
             <span>RSS</span>
           </a>
+          <span class="edition-divider">|</span>
+          <a href="https://www.facebook.com/1482028081653288" target="_blank" rel="noopener noreferrer" class="edition-link">
+            <span>ফেসবুক পেজ</span>
+          </a>
         </div>
+      </div>
+    </div>
+
+    <!-- Classic NYT Broadsheet Masthead -->
+    <header class="site-header">
+      <div class="masthead-inner">
+        <a href="/" class="masthead-brand">
+          <h1 class="masthead-title">প্রকাশ</h1>
+          <div class="masthead-tagline">
+            <span class="tagline-ornament">❧</span>
+            <span>নিরপেক্ষ তথ্যভিত্তিক সংবাদ সংকলন ও বিশ্লেষণ</span>
+            <span class="tagline-ornament">☙</span>
+          </div>
+        </a>
       </div>
     </header>
 
+    <!-- Category Broadsheet Navigation -->
     <CategoryNav currentCategory={currentCategory} />
 
+    <!-- Main Broadsheet Container -->
     <main class="main-content">
       <slot />
     </main>
 
+    <!-- NYT Style Multi-Tier Footer -->
     <footer class="site-footer">
       <div class="footer-inner">
-        <div class="footer-brand">
-          <div class="footer-title">প্রকাশ (Prokash)</div>
-          <p class="footer-desc">
-            তথ্যভিত্তিক, পক্ষপাতহীন এবং সংবেদনশীলতামুক্ত সংবাদ সারসংক্ষেপ প্ল্যাটফর্ম। মূল সংবাদের সম্পূর্ণ স্বত্ব ও কৃতজ্ঞতা সংশ্লিষ্ট সংবাদমাধ্যমের।
-          </p>
+        <div class="footer-top-row">
+          <div class="footer-brand-col">
+            <div class="footer-logo">প্রকাশ</div>
+            <p class="footer-desc">
+              ক্লিকবাইট, পক্ষপাত ও সেনসেশনালিজম ছাড়া সংবাদ প্রচারের একটি স্বয়ংক্রিয় প্রমিত বাংলা নিউজ প্ল্যাটফর্ম।
+            </p>
+          </div>
+          <div class="footer-nav-col">
+            <div class="footer-col-title">সংবাদ বিভাগ</div>
+            <ul class="footer-links-list">
+              <li><a href="/category/national">বাংলাদেশ</a></li>
+              <li><a href="/category/international">আন্তর্জাতিক</a></li>
+              <li><a href="/category/economy">অর্থনীতি</a></li>
+              <li><a href="/category/tech">প্রযুক্তি</a></li>
+              <li><a href="/category/sports">খেলাধুলা</a></li>
+              <li><a href="/category/opinion">মতামত</a></li>
+            </ul>
+          </div>
+          <div class="footer-sources-col">
+            <div class="footer-col-title">মূল সংবাদ উৎসসমূহ</div>
+            <ul class="footer-links-list">
+              <li><a href="https://www.bbc.com/bengali" target="_blank" rel="noopener">বিবিসি বাংলা</a></li>
+              <li><a href="https://www.prothomalo.com" target="_blank" rel="noopener">প্রথম আলো</a></li>
+              <li><a href="https://www.thedailystar.net" target="_blank" rel="noopener">দ্য ডেইলি স্টার</a></li>
+              <li><a href="https://www.aljazeera.com" target="_blank" rel="noopener">আল জাজিরা</a></li>
+            </ul>
+          </div>
         </div>
-        <div class="footer-bottom">
-          <span>&copy; {new Date().getFullYear()} প্রকাশ। সর্বস্বত্ব সংরক্ষিত।</span>
-          <div class="footer-links">
+
+        <div class="footer-bottom-bar">
+          <div class="copyright-text">
+            &copy; {now.getFullYear()} প্রকাশ (Prokash)। সমস্ত স্বত্ব সংরক্ষিত। মূল সংবাদ প্রতিবেদনের স্বত্ব সংশ্লিষ্ট সংবাদমাধ্যমের।
+          </div>
+          <div class="footer-legal-links">
             <a href="/rss.xml">RSS ফিড</a>
-            <span class="dot">•</span>
-            <a href="https://www.facebook.com/1482028081653288" target="_blank" rel="noopener noreferrer">ফেসবুক পেজ</a>
+            <span>•</span>
+            <a href="https://www.facebook.com/1482028081653288" target="_blank" rel="noopener">ফেসবুক</a>
           </div>
         </div>
       </div>
@@ -91,35 +160,50 @@ const {
 
     <style is:global>
       :root {
-        --font-bengali: 'Hind Siliguri', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --bg-main: #f8fafc;
+        --font-serif: 'Noto Serif Bengali', 'Playfair Display', Georgia, serif;
+        --font-sans: 'Hind Siliguri', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        
+        /* NYT Newspaper Palette */
+        --bg-main: #fcfcfc;
         --bg-surface: #ffffff;
         --bg-card: #ffffff;
-        --text-main: #0f172a;
-        --text-body: #334155;
-        --text-muted: #64748b;
-        --border-color: #e2e8f0;
-        --border-hover: #cbd5e1;
-        --primary: #0284c7;
-        --primary-hover: #0369a1;
-        --badge-bg: #e0f2fe;
-        --badge-text: #0369a1;
+        --bg-subtle: #f7f7f7;
+        
+        --text-ink: #121212;
+        --text-headline: #121212;
+        --text-body: #2d3748;
+        --text-muted: #5a6578;
+        --text-subtle: #8a94a6;
+
+        --border-dark: #121212;
+        --border-main: #e2e8f0;
+        --border-subtle: #edf2f7;
+        --border-hairline: #e5e5e5;
+
+        --accent-crimson: #a00000;
+        --accent-blue: #0f62fe;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg-main: #0b0f17;
-          --bg-surface: #111827;
-          --bg-card: #151d2f;
-          --text-main: #f1f5f9;
-          --text-body: #cbd5e1;
-          --text-muted: #94a3b8;
-          --border-color: #1e293b;
-          --border-hover: #334155;
-          --primary: #38bdf8;
-          --primary-hover: #7dd3fc;
-          --badge-bg: #1e293b;
-          --badge-text: #38bdf8;
+          --bg-main: #0d1117;
+          --bg-surface: #161b22;
+          --bg-card: #161b22;
+          --bg-subtle: #21262d;
+
+          --text-ink: #f0f6fc;
+          --text-headline: #ffffff;
+          --text-body: #c9d1d9;
+          --text-muted: #8b949e;
+          --text-subtle: #6e7681;
+
+          --border-dark: #30363d;
+          --border-main: #30363d;
+          --border-subtle: #21262d;
+          --border-hairline: #30363d;
+
+          --accent-crimson: #f85149;
+          --accent-blue: #58a6ff;
         }
       }
 
@@ -131,134 +215,238 @@ const {
         margin: 0;
         padding: 0;
         background: var(--bg-main);
-        color: var(--text-main);
-        font-family: var(--font-bengali);
+        color: var(--text-body);
+        font-family: var(--font-sans);
         font-size: 16px;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
       }
 
-      .site-header {
+      /* Edition Top Bar */
+      .edition-bar {
+        border-bottom: 1px solid var(--border-hairline);
         background: var(--bg-surface);
-        border-bottom: 1px solid var(--border-color);
-        padding: 1rem 0;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        padding: 0.4rem 0;
       }
 
-      .header-inner {
-        max-width: 900px;
+      .edition-inner {
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 0 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .brand-link {
-        text-decoration: none;
-        color: inherit;
-      }
-
-      .brand-title {
-        font-size: 1.85rem;
-        font-weight: 700;
-        margin: 0;
-        letter-spacing: -0.02em;
-        color: var(--text-main);
-      }
-
-      .brand-tagline {
-        font-size: 0.82rem;
-        color: var(--text-muted);
-        display: block;
-        margin-top: 0.1rem;
-      }
-
-      .rss-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-decoration: none;
-        padding: 0.35rem 0.65rem;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        transition: all 0.15s ease;
-      }
-
-      .rss-link:hover {
-        color: var(--primary);
-        border-color: var(--primary);
-      }
-
-      .main-content {
-        max-width: 900px;
-        margin: 1.5rem auto 3rem auto;
-        padding: 0 1rem;
-        min-height: 60vh;
-      }
-
-      .site-footer {
-        background: var(--bg-surface);
-        border-top: 1px solid var(--border-color);
-        padding: 2.5rem 0 1.5rem 0;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-      }
-
-      .footer-inner {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 0 1rem;
-      }
-
-      .footer-brand {
-        margin-bottom: 1.5rem;
-      }
-
-      .footer-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-bottom: 0.4rem;
-      }
-
-      .footer-desc {
-        margin: 0;
-        max-width: 600px;
-        line-height: 1.6;
-        font-size: 0.88rem;
-      }
-
-      .footer-bottom {
-        border-top: 1px solid var(--border-color);
-        padding-top: 1rem;
+        padding: 0 1.25rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 0.5rem;
-        font-size: 0.82rem;
       }
 
-      .footer-links {
+      .edition-left, .edition-right {
         display: flex;
         align-items: center;
         gap: 0.5rem;
       }
 
-      .footer-links a {
+      .edition-date {
+        font-weight: 600;
+        color: var(--text-ink);
+      }
+
+      .edition-divider {
+        color: var(--border-main);
+      }
+
+      .edition-motto {
+        font-style: italic;
+        font-family: var(--font-serif);
+        font-size: 0.85rem;
+        color: var(--text-subtle);
+      }
+
+      @media (max-width: 768px) {
+        .edition-center {
+          display: none;
+        }
+      }
+
+      .edition-link {
         color: var(--text-muted);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+      }
+
+      .edition-link:hover {
+        color: var(--accent-crimson);
+      }
+
+      /* Masthead */
+      .site-header {
+        background: var(--bg-surface);
+        padding: 1.5rem 0 1.25rem 0;
+        text-align: center;
+        border-bottom: 1px solid var(--border-dark);
+      }
+
+      .masthead-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+      }
+
+      .masthead-brand {
+        text-decoration: none;
+        color: inherit;
+        display: inline-block;
+      }
+
+      .masthead-title {
+        font-family: var(--font-serif);
+        font-size: 3.5rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        margin: 0;
+        color: var(--text-headline);
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 640px) {
+        .masthead-title {
+          font-size: 2.6rem;
+        }
+      }
+
+      .masthead-tagline {
+        font-family: var(--font-serif);
+        font-size: 0.92rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+      }
+
+      .tagline-ornament {
+        color: var(--accent-crimson);
+        font-size: 0.85rem;
+      }
+
+      /* Main container */
+      .main-content {
+        max-width: 1200px;
+        margin: 1.5rem auto 3.5rem auto;
+        padding: 0 1.25rem;
+        min-height: 70vh;
+      }
+
+      /* Broadsheet Footer */
+      .site-footer {
+        background: var(--bg-surface);
+        border-top: 3px double var(--border-dark);
+        padding: 3rem 0 1.5rem 0;
+        margin-top: 4rem;
+      }
+
+      .footer-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+      }
+
+      .footer-top-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 2.5rem;
+        margin-bottom: 2.5rem;
+      }
+
+      @media (max-width: 768px) {
+        .footer-top-row {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+      }
+
+      .footer-logo {
+        font-family: var(--font-serif);
+        font-size: 1.8rem;
+        font-weight: 900;
+        color: var(--text-headline);
+        margin-bottom: 0.5rem;
+      }
+
+      .footer-desc {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin: 0;
+        max-width: 380px;
+      }
+
+      .footer-col-title {
+        font-family: var(--font-serif);
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text-headline);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-hairline);
+        padding-bottom: 0.35rem;
+      }
+
+      .footer-links-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .footer-links-list li {
+        margin-bottom: 0.4rem;
+      }
+
+      .footer-links-list a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.88rem;
+        transition: color 0.15s ease;
+      }
+
+      .footer-links-list a:hover {
+        color: var(--accent-crimson);
+      }
+
+      .footer-bottom-bar {
+        border-top: 1px solid var(--border-hairline);
+        padding-top: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        font-size: 0.82rem;
+        color: var(--text-subtle);
+      }
+
+      .footer-legal-links {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .footer-legal-links a {
+        color: var(--text-subtle);
         text-decoration: none;
       }
 
-      .footer-links a:hover {
-        color: var(--primary);
-      }
-
-      .dot {
-        color: var(--border-color);
+      .footer-legal-links a:hover {
+        color: var(--text-ink);
       }
     </style>
   </body>

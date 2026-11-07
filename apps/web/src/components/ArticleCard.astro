@@ -3,18 +3,18 @@ import type { Article } from '../lib/supabase';
 
 export interface Props {
   article: Article;
-  featured?: boolean;
+  variant?: 'hero' | 'standard' | 'compact' | 'column';
 }
 
-const { article, featured = false } = Astro.props;
+const { article, variant = 'standard' } = Astro.props;
 
 const categoryLabels: Record<string, string> = {
   national: 'বাংলাদেশ',
   international: 'আন্তর্জাতিক',
-  economy: 'অর্থনীতি',
-  tech: 'প্রযুক্তি',
+  economy: 'অর্থনীতি ও বাণিজ্য',
+  tech: 'বিজ্ঞান ও প্রযুক্তি',
   sports: 'খেলাধুলা',
-  opinion: 'মতামত',
+  opinion: 'মতামত ও বিশ্লেষণ',
 };
 
 const categoryName = categoryLabels[article.category] || article.category;
@@ -40,48 +40,64 @@ function formatRelativeTime(dateString: string): string {
 const timeAgo = formatRelativeTime(article.published_at || article.created_at);
 ---
 
-<article class={`article-card ${featured ? 'featured' : ''}`}>
-  <div class="card-meta">
-    <span class="badge category-badge">{categoryName}</span>
-    <span class="meta-dot">•</span>
-    <span class="source-badge">
+<article
+  class={`nyt-article-card variant-${variant}`}
+  data-title={article.title_bn}
+  data-summary={article.summary_bn}
+  data-category={article.category}
+  data-source={article.source_name}
+>
+  <!-- Category & Source Metadata -->
+  <div class="card-kicker-row">
+    <a href={`/category/${article.category}`} class="kicker-category">
+      {categoryName}
+    </a>
+    <span class="kicker-dot">•</span>
+    <span class="kicker-source">
       সূত্র: <a href={article.original_url} target="_blank" rel="noopener noreferrer nofollow" class="source-link">{article.source_name}</a>
     </span>
     {timeAgo && (
       <>
-        <span class="meta-dot">•</span>
-        <span class="time-meta">{timeAgo}</span>
+        <span class="kicker-dot">•</span>
+        <span class="kicker-time">{timeAgo}</span>
       </>
     )}
   </div>
 
-  <h2 class="card-title">
-    <a href={`/news/${article.slug}`} class="title-link">
+  <!-- Headline -->
+  <h2 class={`card-headline headline-${variant}`}>
+    <a href={`/news/${article.slug}`} class="headline-link">
       {article.title_bn}
     </a>
   </h2>
 
+  <!-- Image (Hero, Standard, Column, Compact) -->
   {article.image_url && (
-    <div class="card-image-wrap">
+    <div class={`card-media-wrap media-${variant}`}>
       <img
         src={article.image_url}
         alt={article.title_bn}
         loading="lazy"
         decoding="async"
-        class="card-image"
+        class="card-img"
         onerror="this.parentElement.style.display='none'"
       />
     </div>
   )}
 
-  <p class="card-summary">
+  <!-- Summary Paragraph -->
+  <p class={`card-summary summary-${variant}`}>
     {article.summary_bn}
   </p>
 
-  {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && (
+  <!-- 3-Bullet Takeaways Box (Hero & Standard) -->
+  {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && variant !== 'compact' && (
     <div class="takeaways-box">
-      <div class="takeaways-title">মূল তথ্য:</div>
-      <ul class="takeaways-list">
+      <div class="takeaways-header">
+        <span class="takeaways-bullet">■</span>
+        <span class="takeaways-title">মূল সারসংক্ষেপ:</span>
+      </div>
+      <ul class="takeaways-items">
         {article.bullets_bn.map((point: string) => (
           <li>{point}</li>
         ))}
@@ -89,144 +105,268 @@ const timeAgo = formatRelativeTime(article.published_at || article.created_at);
     </div>
   )}
 
-  <div class="card-footer">
-    <a href={`/news/${article.slug}`} class="read-full-link">
-      বিস্তারিত পড়ুন →
+  <!-- Footer Link -->
+  <div class="card-byline-footer">
+    <a href={`/news/${article.slug}`} class="read-detail-link">
+      সম্পূর্ণ সংক্ষেপ পড়ুন →
     </a>
     <a
       href={article.original_url}
       target="_blank"
       rel="noopener noreferrer nofollow"
-      class="original-outbound-link"
+      class="source-original-link"
     >
-      মূল প্রতিবেদন ({article.source_name}) ↗
+      মূল উৎস প্রতিবেদন ↗
     </a>
   </div>
 </article>
 
 <style>
-  .article-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  .nyt-article-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    transition: background-color 0.15s ease;
   }
-  .article-card:hover {
-    border-color: var(--border-hover);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  }
-  .card-meta {
+
+  /* Kicker / Category Row */
+  .card-kicker-row {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-    flex-wrap: wrap;
-  }
-  .badge {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    background: var(--badge-bg);
-    color: var(--badge-text);
-    border-radius: 4px;
     font-size: 0.78rem;
-    font-weight: 600;
-  }
-  .meta-dot {
-    color: var(--border-color);
-  }
-  .source-link {
     color: var(--text-muted);
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    margin-bottom: 0.45rem;
+    flex-wrap: wrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--font-sans);
   }
-  .source-link:hover {
-    color: var(--text-main);
-  }
-  .card-title {
-    font-size: 1.35rem;
-    line-height: 1.45;
-    margin: 0 0 0.85rem 0;
+
+  .kicker-category {
+    color: var(--accent-crimson);
     font-weight: 700;
-  }
-  .title-link {
-    color: var(--text-main);
     text-decoration: none;
   }
-  .title-link:hover {
-    color: var(--primary);
+
+  .kicker-category:hover {
+    text-decoration: underline;
   }
-  .card-image-wrap {
-    margin-bottom: 1rem;
-    border-radius: 6px;
+
+  .kicker-dot {
+    color: var(--border-hairline);
+  }
+
+  .source-link {
+    color: var(--text-ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .source-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Headlines */
+  .card-headline {
+    font-family: var(--font-serif);
+    color: var(--text-headline);
+    margin: 0 0 0.65rem 0;
+    letter-spacing: -0.02em;
+  }
+
+  .headline-link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .headline-link:hover {
+    color: var(--accent-crimson);
+  }
+
+  .headline-hero {
+    font-size: 2.2rem;
+    line-height: 1.25;
+    font-weight: 800;
+  }
+
+  @media (max-width: 768px) {
+    .headline-hero {
+      font-size: 1.65rem;
+    }
+  }
+
+  .headline-standard {
+    font-size: 1.35rem;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+
+  .headline-column {
+    font-size: 1.2rem;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+
+  .headline-compact {
+    font-size: 1.05rem;
+    line-height: 1.4;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  /* Media / Image */
+  .card-media-wrap {
     overflow: hidden;
-    max-height: 280px;
-    background: var(--bg-surface);
+    background: var(--bg-subtle);
+    margin-bottom: 0.85rem;
+    border-radius: 2px;
   }
-  .card-image {
+
+  .media-hero {
+    max-height: 380px;
+  }
+
+  .media-standard, .media-column {
+    max-height: 220px;
+  }
+
+  .media-compact {
+    max-height: 140px;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform 0.25s ease;
   }
+
+  .nyt-article-card:hover .card-img {
+    transform: scale(1.02);
+  }
+
+  /* Summary */
   .card-summary {
     color: var(--text-body);
-    font-size: 1.02rem;
-    line-height: 1.65;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.85rem 0;
+    font-family: var(--font-sans);
   }
+
+  .summary-hero {
+    font-size: 1.08rem;
+    line-height: 1.7;
+  }
+
+  .summary-standard, .summary-column {
+    font-size: 0.96rem;
+    line-height: 1.65;
+  }
+
+  .summary-compact {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Takeaways Highlight Box */
   .takeaways-box {
-    background: var(--bg-surface);
-    border-left: 3px solid var(--primary);
-    border-radius: 0 6px 6px 0;
-    padding: 0.85rem 1rem;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border-hairline);
+    border-bottom: 1px solid var(--border-hairline);
+    padding: 0.75rem 0.85rem;
     margin-bottom: 1rem;
   }
-  .takeaways-title {
+
+  .takeaways-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--primary);
+    color: var(--text-headline);
     margin-bottom: 0.4rem;
+    font-family: var(--font-serif);
   }
-  .takeaways-list {
+
+  .takeaways-bullet {
+    color: var(--accent-crimson);
+    font-size: 0.7rem;
+  }
+
+  .takeaways-items {
     margin: 0;
-    padding-left: 1.25rem;
-    color: var(--text-body);
-    font-size: 0.95rem;
+    padding-left: 1.15rem;
+    font-size: 0.92rem;
     line-height: 1.6;
+    color: var(--text-body);
   }
-  .takeaways-list li {
+
+  .takeaways-items li {
     margin-bottom: 0.35rem;
   }
-  .takeaways-list li:last-child {
+
+  .takeaways-items li:last-child {
     margin-bottom: 0;
   }
-  .card-footer {
+
+  /* Byline / Footer */
+  .card-byline-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.75rem;
-    font-size: 0.9rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    font-size: 0.82rem;
+    border-top: 1px dotted var(--border-hairline);
   }
-  .read-full-link {
-    color: var(--primary);
+
+  .read-detail-link {
+    color: var(--text-headline);
+    font-family: var(--font-serif);
+    font-weight: 700;
     text-decoration: none;
-    font-weight: 600;
   }
-  .read-full-link:hover {
+
+  .read-detail-link:hover {
+    color: var(--accent-crimson);
     text-decoration: underline;
   }
-  .original-outbound-link {
+
+  .source-original-link {
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 0.85rem;
   }
-  .original-outbound-link:hover {
-    color: var(--text-main);
+
+  .source-original-link:hover {
+    color: var(--text-ink);
     text-decoration: underline;
+  }
+
+  /* Variant Specific Spacing */
+  .variant-hero {
+    padding-bottom: 1.5rem;
+  }
+
+  .variant-compact {
+    padding-bottom: 1.1rem;
+    margin-bottom: 1.1rem;
+    border-bottom: 1px solid var(--border-hairline);
+  }
+
+  .variant-compact:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .variant-column {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-hairline);
   }
 </style>

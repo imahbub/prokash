@@ -7,6 +7,7 @@ const { slug } = Astro.params;
 Astro.response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
 
 let article: Article | null = null;
+let relatedArticles: Article[] = [];
 let fetchError: string | null = null;
 
 try {
@@ -21,6 +22,18 @@ try {
     fetchError = 'সংবাদটি পাওয়া যায়নি';
   } else {
     article = data as Article;
+
+    // Fetch up to 3 other articles for "আরও পড়ুন" (Read Next)
+    const { data: related } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('status', 'published')
+      .neq('slug', slug)
+      .limit(3);
+    
+    if (related) {
+      relatedArticles = related as Article[];
+    }
   }
 } catch (err: any) {
   fetchError = err.message || 'ডাটাবেজ সংযোগে সমস্যা হয়েছে';
@@ -33,10 +46,10 @@ if (!article && !fetchError) {
 const categoryLabels: Record<string, string> = {
   national: 'বাংলাদেশ',
   international: 'আন্তর্জাতিক',
-  economy: 'অর্থনীতি',
-  tech: 'প্রযুক্তি',
+  economy: 'অর্থনীতি ও বাণিজ্য',
+  tech: 'বিজ্ঞান ও প্রযুক্তি',
   sports: 'খেলাধুলা',
-  opinion: 'মতামত',
+  opinion: 'মতামত ও বিশ্লেষণ',
 };
 
 const categoryName = article ? categoryLabels[article.category] || article.category : '';
@@ -66,84 +79,115 @@ function formatDate(dateStr: string): string {
     currentCategory={article.category}
     publishedTime={article.published_at}
   >
-    <article class="article-detail">
-      <div class="article-header">
-        <div class="meta-row">
-          <a href={`/category/${article.category}`} class="badge category-badge">
+    <div class="article-broadsheet-container">
+      <article class="nyt-story-article">
+        <!-- Breadcrumbs / Kicker -->
+        <div class="story-kicker-bar">
+          <a href={`/category/${article.category}`} class="kicker-category">
             {categoryName}
           </a>
-          <span class="meta-dot">•</span>
-          <span class="time-meta">{formatDate(article.published_at || article.created_at)}</span>
+          <span class="kicker-divider">•</span>
+          <span class="kicker-timestamp">{formatDate(article.published_at || article.created_at)}</span>
         </div>
 
-        <h1 class="article-title">{article.title_bn}</h1>
+        <!-- Headline -->
+        <h1 class="story-headline">{article.title_bn}</h1>
 
-        <div class="source-attribution-card">
-          <span class="attribution-label">সংবাদের মূল উৎস:</span>
+        <!-- Byline / Source Attribution Box -->
+        <div class="story-byline-bar">
+          <div class="byline-left">
+            <span class="byline-author">সংবাদ সংকলন: <strong>প্রকাশ ডেস্ক</strong></span>
+            <span class="byline-sep">|</span>
+            <span class="byline-source">
+              মূল উৎস: <a href={article.original_url} target="_blank" rel="noopener noreferrer nofollow" class="source-link">{article.source_name} ↗</a>
+            </span>
+          </div>
+          <div class="byline-right">
+            <button
+              onclick="navigator.clipboard.writeText(window.location.href); alert('সংবাদটির লিংক কপি করা হয়েছে!');"
+              class="share-link-btn"
+              title="লিংক কপি করুন"
+            >
+              🔗 শেয়ার করুন
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Featured Image -->
+        {article.image_url && (
+          <figure class="story-featured-figure">
+            <img
+              src={article.image_url}
+              alt={article.title_bn}
+              class="story-main-img"
+              loading="eager"
+              onerror="this.parentElement.style.display='none'"
+            />
+            <figcaption class="story-caption">
+              ছবি: {article.source_name} সৌজন্যে | মূল সংবাদমাধ্যমের স্বত্ব সংরক্ষিত
+            </figcaption>
+          </figure>
+        )}
+
+        <!-- 3-Bullet Key Takeaways Box (Classic NYT Key Points Box) -->
+        {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && (
+          <section class="story-keypoints-box" aria-label="মূল তথ্যাবলি">
+            <div class="keypoints-title">
+              <span class="keypoints-bullet">■</span>
+              <span>ঘটনার মূল তথ্য ও সারসংক্ষেপ:</span>
+            </div>
+            <ul class="keypoints-list">
+              {article.bullets_bn.map((point: string) => (
+                <li>{point}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <!-- Summary Paragraph / Story Body -->
+        <div class="story-body-content">
+          <p class="story-lead-paragraph">{article.summary_bn}</p>
+        </div>
+
+        <!-- Outbound Fair-Use Attribution Callout -->
+        <div class="story-outbound-callout">
+          <div class="callout-heading">মূল প্রতিবেদন পড়তে:</div>
+          <p class="callout-text">
+            ঘটনার পূর্ণাঙ্গ পটভূমি, সরাসরি উদ্ধৃতি ও বিস্তারিত বিশ্লেষণের জন্য মূল সংবাদমাধ্যম <strong>{article.source_name}</strong>-এর মূল প্রতিবেদনটি পড়ুন।
+          </p>
           <a
             href={article.original_url}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            class="attribution-link"
+            class="callout-cta-btn"
           >
-            {article.source_name} ↗
+            {article.source_name}-এ পুরো প্রতিবেদন পড়ুন ↗
           </a>
-          <span class="attribution-note">(মূল প্রতিবেদনের সম্পূর্ণ স্বত্ব সংশ্লিষ্ট প্রকাশকের)</span>
         </div>
-      </div>
+      </article>
 
-      {article.image_url && (
-        <figure class="featured-image-wrap">
-          <img
-            src={article.image_url}
-            alt={article.title_bn}
-            class="featured-image"
-            loading="eager"
-            onerror="this.parentElement.style.display='none'"
-          />
-        </figure>
-      )}
-
-      {Array.isArray(article.bullets_bn) && article.bullets_bn.length > 0 && (
-        <section class="key-takeaways" aria-label="মূল তথ্যাবলি">
-          <h2 class="takeaways-heading">📌 সংক্ষেপ ও প্রধান তথ্য:</h2>
-          <ul class="takeaways-list">
-            {article.bullets_bn.map((point: string) => (
-              <li>{point}</li>
+      <!-- Sidebar / Related Stories -->
+      {relatedArticles.length > 0 && (
+        <aside class="story-sidebar">
+          <div class="sidebar-header">
+            <h3 class="sidebar-title">আরও গুরুত্বপূর্ণ সংবাদ</h3>
+            <span class="rule"></span>
+          </div>
+          <div class="sidebar-stories">
+            {relatedArticles.map((rel) => (
+              <div class="sidebar-card">
+                <a href={`/news/${rel.slug}`} class="sidebar-headline">
+                  {rel.title_bn}
+                </a>
+                <div class="sidebar-meta">
+                  <span class="source-tag">{rel.source_name}</span>
+                </div>
+              </div>
             ))}
-          </ul>
-        </section>
+          </div>
+        </aside>
       )}
-
-      <section class="summary-body" aria-label="সংবাদ সারসংক্ষেপ">
-        <h2 class="section-heading">বস্তুনিষ্ঠ সারসংক্ষেপ</h2>
-        <p class="summary-text">{article.summary_bn}</p>
-      </section>
-
-      <div class="outbound-cta-box">
-        <div class="cta-text">
-          ঘটনার সম্পূর্ণ বিবরণ ও পটভূমি জানতে মূল সংবাদমাধ্যমে প্রকাশিত পুরো প্রতিবেদনটি পড়ুন:
-        </div>
-        <a
-          href={article.original_url}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          class="cta-button"
-        >
-          {article.source_name}-এ বিস্তারিত প্রতিবেদন পড়ুন ↗
-        </a>
-      </div>
-
-      <div class="share-box">
-        <span class="share-label">সংবাদ লিংক শেয়ার করুন:</span>
-        <button
-          onclick="navigator.clipboard.writeText(window.location.href); alert('লিংক কপি করা হয়েছে!');"
-          class="copy-link-btn"
-        >
-          🔗 লিংক কপি করুন
-        </button>
-      </div>
-    </article>
+    </div>
   </BaseLayout>
 ) : (
   <BaseLayout title="সংবাদটি পাওয়া যায়নি — প্রকাশ">
@@ -156,197 +200,308 @@ function formatDate(dateStr: string): string {
 )}
 
 <style>
-  .article-detail {
+  .article-broadsheet-container {
+    display: grid;
+    grid-template-columns: 8fr 4fr;
+    gap: 3rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .article-broadsheet-container {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+  }
+
+  /* Story Article */
+  .nyt-story-article {
     background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   }
-  @media (max-width: 640px) {
-    .article-detail {
-      padding: 1.25rem;
-    }
-  }
-  .article-header {
-    margin-bottom: 1.5rem;
-  }
-  .meta-row {
+
+  .story-kicker-bar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     margin-bottom: 0.75rem;
-  }
-  .badge {
-    display: inline-block;
-    padding: 0.2rem 0.6rem;
-    background: var(--badge-bg);
-    color: var(--badge-text);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-decoration: none;
-  }
-  .meta-dot {
-    color: var(--border-color);
-  }
-  .article-title {
-    font-size: 1.85rem;
-    line-height: 1.4;
-    margin: 0 0 1rem 0;
-    font-weight: 700;
-    color: var(--text-main);
-  }
-  @media (max-width: 640px) {
-    .article-title {
-      font-size: 1.45rem;
-    }
-  }
-  .source-attribution-card {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    background: var(--bg-main);
-    padding: 0.6rem 0.85rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-  }
-  .attribution-label {
-    font-weight: 600;
     color: var(--text-muted);
   }
-  .attribution-link {
-    color: var(--primary);
+
+  .kicker-category {
+    color: var(--accent-crimson);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .kicker-divider {
+    color: var(--border-hairline);
+  }
+
+  .story-headline {
+    font-family: var(--font-serif);
+    font-size: 2.6rem;
+    line-height: 1.25;
+    font-weight: 800;
+    color: var(--text-headline);
+    margin: 0 0 1.25rem 0;
+    letter-spacing: -0.02em;
+  }
+
+  @media (max-width: 640px) {
+    .story-headline {
+      font-size: 1.85rem;
+    }
+  }
+
+  /* Byline */
+  .story-byline-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--border-hairline);
+    border-bottom: 1px solid var(--border-hairline);
+    margin-bottom: 1.75rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .byline-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .byline-sep {
+    color: var(--border-hairline);
+  }
+
+  .source-link {
+    color: var(--text-ink);
     font-weight: 600;
     text-decoration: none;
   }
-  .attribution-link:hover {
+
+  .source-link:hover {
+    color: var(--accent-crimson);
     text-decoration: underline;
   }
-  .attribution-note {
-    color: var(--text-muted);
-    font-size: 0.78rem;
+
+  .share-link-btn {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-headline);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
-  .featured-image-wrap {
-    margin: 0 0 1.5rem 0;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--bg-main);
+
+  .share-link-btn:hover {
+    background: var(--border-hairline);
   }
-  .featured-image {
+
+  /* Media */
+  .story-featured-figure {
+    margin: 0 0 1.75rem 0;
+  }
+
+  .story-main-img {
     width: 100%;
-    max-height: 420px;
+    max-height: 480px;
     object-fit: cover;
     display: block;
+    border-radius: 2px;
   }
-  .key-takeaways {
-    background: var(--badge-bg);
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--primary);
-    border-radius: 8px;
+
+  .story-caption {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding-top: 0.4rem;
+    border-bottom: 1px solid var(--border-hairline);
+    padding-bottom: 0.4rem;
+  }
+
+  /* Key Takeaways Box */
+  .story-keypoints-box {
+    background: var(--bg-subtle);
+    border-left: 3px solid var(--text-headline);
     padding: 1.25rem 1.5rem;
-    margin-bottom: 1.75rem;
-  }
-  .takeaways-heading {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--badge-text);
-    margin: 0 0 0.75rem 0;
-  }
-  .takeaways-list {
-    margin: 0;
-    padding-left: 1.25rem;
-    color: var(--text-main);
-    font-size: 1.02rem;
-    line-height: 1.7;
-  }
-  .takeaways-list li {
-    margin-bottom: 0.5rem;
-  }
-  .takeaways-list li:last-child {
-    margin-bottom: 0;
-  }
-  .summary-body {
     margin-bottom: 2rem;
   }
-  .section-heading {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin: 0 0 0.6rem 0;
-    color: var(--text-main);
-  }
-  .summary-text {
-    font-size: 1.1rem;
-    line-height: 1.8;
-    color: var(--text-body);
-    margin: 0;
-  }
-  .outbound-cta-box {
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.25rem;
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-  .cta-text {
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-  }
-  .cta-button {
-    display: inline-block;
-    background: var(--primary);
-    color: #ffffff;
-    font-weight: 600;
-    text-decoration: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    transition: background 0.15s ease;
-  }
-  .cta-button:hover {
-    background: var(--primary-hover);
-  }
-  .share-box {
+
+  .keypoints-title {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    border-top: 1px solid var(--border-color);
-    padding-top: 1rem;
-    font-size: 0.88rem;
+    gap: 0.5rem;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-headline);
+    margin-bottom: 0.75rem;
   }
-  .share-label {
+
+  .keypoints-bullet {
+    color: var(--accent-crimson);
+    font-size: 0.8rem;
+  }
+
+  .keypoints-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 1.02rem;
+    line-height: 1.75;
+    color: var(--text-body);
+  }
+
+  .keypoints-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .keypoints-list li:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Body Content */
+  .story-body-content {
+    margin-bottom: 2.5rem;
+  }
+
+  .story-lead-paragraph {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    line-height: 1.85;
+    color: var(--text-ink);
+    margin: 0;
+  }
+
+  /* Outbound Callout */
+  .story-outbound-callout {
+    border: 1px solid var(--border-main);
+    background: var(--bg-subtle);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+  }
+
+  .callout-heading {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-headline);
+    margin-bottom: 0.4rem;
+  }
+
+  .callout-text {
+    font-size: 0.95rem;
+    color: var(--text-body);
+    margin: 0 0 1rem 0;
+    line-height: 1.6;
+  }
+
+  .callout-cta-btn {
+    display: inline-block;
+    padding: 0.6rem 1.25rem;
+    background: var(--text-headline);
+    color: var(--bg-surface);
+    text-decoration: none;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 0.92rem;
+    border-radius: 3px;
+    transition: opacity 0.15s ease;
+  }
+
+  .callout-cta-btn:hover {
+    opacity: 0.9;
+  }
+
+  /* Sidebar */
+  .story-sidebar {
+    border-left: 1px solid var(--border-hairline);
+    padding-left: 2rem;
+  }
+
+  @media (max-width: 900px) {
+    .story-sidebar {
+      border-left: none;
+      padding-left: 0;
+      border-top: 1px solid var(--border-hairline);
+      padding-top: 2rem;
+    }
+  }
+
+  .sidebar-header {
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid var(--border-dark);
+    padding-bottom: 0.4rem;
+  }
+
+  .sidebar-title {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-headline);
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .sidebar-stories {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .sidebar-card {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-hairline);
+  }
+
+  .sidebar-card:last-child {
+    border-bottom: none;
+  }
+
+  .sidebar-headline {
+    font-family: var(--font-serif);
+    font-size: 1.08rem;
+    line-height: 1.4;
+    font-weight: 700;
+    color: var(--text-headline);
+    text-decoration: none;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  .sidebar-headline:hover {
+    color: var(--accent-crimson);
+  }
+
+  .sidebar-meta {
+    font-size: 0.78rem;
     color: var(--text-muted);
   }
-  .copy-link-btn {
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
-    font-family: inherit;
-    font-size: 0.85rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  .copy-link-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-  }
+
   .not-found-card {
     background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 3rem 1.5rem;
+    border: 1px solid var(--border-hairline);
+    border-radius: 4px;
+    padding: 4rem 1.5rem;
     text-align: center;
   }
+
   .back-home-link {
     display: inline-block;
     margin-top: 1rem;
-    color: var(--primary);
+    color: var(--accent-crimson);
+    font-weight: 700;
     text-decoration: none;
-    font-weight: 600;
   }
 </style>

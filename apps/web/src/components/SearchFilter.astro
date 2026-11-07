@@ -1,0 +1,267 @@
+---
+export interface Props {
+  searchQuery?: string;
+  selectedCategory?: string;
+  selectedSource?: string;
+  availableSources?: string[];
+  totalCount?: number;
+}
+
+const {
+  searchQuery = '',
+  selectedCategory = 'all',
+  selectedSource = 'all',
+  availableSources = ['BBC Bangla', 'Prothom Alo Bangla', 'Prothom Alo English', 'The Daily Star', 'Al Jazeera World'],
+  totalCount = 0,
+} = Astro.props;
+
+const categories = [
+  { slug: 'all', name: 'সকল বিভাগ' },
+  { slug: 'national', name: 'বাংলাদেশ' },
+  { slug: 'international', name: 'আন্তর্জাতিক' },
+  { slug: 'economy', name: 'অর্থনীতি' },
+  { slug: 'tech', name: 'প্রযুক্তি' },
+  { slug: 'sports', name: 'খেলাধুলা' },
+  { slug: 'opinion', name: 'মতামত' },
+];
+---
+
+<div class="search-filter-section" id="filterSection">
+  <form method="GET" action="/" class="filter-form" id="filterForm">
+    <div class="filter-controls-row">
+      <!-- Search Input -->
+      <div class="search-input-wrap">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="search"
+          name="q"
+          id="searchInput"
+          class="search-input"
+          placeholder="শিরোনাম বা বিষয়বস্তু দিয়ে খুঁজুন..."
+          value={searchQuery}
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Category Filter -->
+      <div class="select-wrap">
+        <select name="category" id="categorySelect" class="filter-select">
+          {categories.map((c) => (
+            <option value={c.slug} selected={selectedCategory === c.slug}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Source Filter -->
+      <div class="select-wrap">
+        <select name="source" id="sourceSelect" class="filter-select">
+          <option value="all" selected={selectedSource === 'all'}>সকল সংবাদমাধ্যম</option>
+          {availableSources.map((s) => (
+            <option value={s} selected={selectedSource === s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Submit / Filter Button -->
+      <button type="submit" class="filter-submit-btn">
+        অনুসন্ধান
+      </button>
+
+      {(searchQuery || selectedCategory !== 'all' || selectedSource !== 'all') && (
+        <a href="/" class="filter-reset-link" title="ফিল্টার রিসেট করুন">
+          ✕ রিসেট
+        </a>
+      )}
+    </div>
+
+    <div class="filter-meta-bar">
+      <span class="live-count-badge" id="liveCountText">
+        {totalCount > 0 ? `মোট ${totalCount}টি প্রতিবেদন উপলব্ধ` : 'সংবাদ সূচি'}
+      </span>
+      <span class="filter-hint">
+        * তাত্ক্ষণিক ফিল্টার করতে টাইপ করুন
+      </span>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Instant real-time filtering on client without page reload
+  function initInstantFilter() {
+    const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
+    const categorySelect = document.getElementById('categorySelect') as HTMLSelectElement | null;
+    const sourceSelect = document.getElementById('sourceSelect') as HTMLSelectElement | null;
+    const countBadge = document.getElementById('liveCountText');
+    const articles = document.querySelectorAll<HTMLElement>('.broadsheet-card-wrap');
+
+    if (!searchInput || !categorySelect || !sourceSelect || articles.length === 0) return;
+
+    function applyFilter() {
+      const q = (searchInput?.value || '').toLowerCase().trim();
+      const cat = categorySelect?.value || 'all';
+      const src = sourceSelect?.value || 'all';
+
+      let visibleCount = 0;
+
+      articles.forEach((card) => {
+        const title = (card.dataset.title || '').toLowerCase();
+        const summary = (card.dataset.summary || '').toLowerCase();
+        const cardCat = card.dataset.category || '';
+        const cardSrc = card.dataset.source || '';
+
+        const matchesQuery = !q || title.includes(q) || summary.includes(q);
+        const matchesCat = cat === 'all' || cardCat === cat;
+        const matchesSrc = src === 'all' || cardSrc === src;
+
+        if (matchesQuery && matchesCat && matchesSrc) {
+          card.style.display = '';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      if (countBadge) {
+        countBadge.textContent = `${visibleCount}টি প্রতিবেদন প্রদর্শিত হচ্ছে`;
+      }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    categorySelect.addEventListener('change', applyFilter);
+    sourceSelect.addEventListener('change', applyFilter);
+  }
+
+  // Run on load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInstantFilter);
+  } else {
+    initInstantFilter();
+  }
+</script>
+
+<style>
+  .search-filter-section {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  }
+
+  .filter-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .search-input-wrap {
+    flex: 1 1 240px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-subtle);
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem 0.55rem 2.2rem;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    background: var(--bg-main);
+    color: var(--text-ink);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .search-input:focus {
+    border-color: var(--text-headline);
+  }
+
+  .select-wrap {
+    flex: 0 1 auto;
+  }
+
+  .filter-select {
+    padding: 0.55rem 0.85rem;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    background: var(--bg-main);
+    color: var(--text-headline);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .filter-select:focus {
+    border-color: var(--text-headline);
+  }
+
+  .filter-submit-btn {
+    padding: 0.55rem 1rem;
+    background: var(--text-headline);
+    color: var(--bg-surface);
+    border: none;
+    border-radius: 4px;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .filter-submit-btn:hover {
+    opacity: 0.9;
+  }
+
+  .filter-reset-link {
+    color: var(--accent-crimson);
+    font-size: 0.85rem;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .filter-reset-link:hover {
+    text-decoration: underline;
+  }
+
+  .filter-meta-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.65rem;
+    padding-top: 0.5rem;
+    border-top: 1px dotted var(--border-hairline);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .live-count-badge {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    color: var(--text-headline);
+  }
+
+  .filter-hint {
+    color: var(--text-subtle);
+    font-size: 0.75rem;
+  }
+</style>
