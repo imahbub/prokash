@@ -10,6 +10,18 @@ async function runPipeline(env: Env) {
   const startedAt = Date.now();
   console.log('[Worker] Starting news ingestion & processing pipeline...');
 
+  // Validate required environment secrets
+  const missingSecrets: string[] = [];
+  if (!env.SUPABASE_URL) missingSecrets.push('SUPABASE_URL');
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) missingSecrets.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (!env.GEMINI_API_KEY) missingSecrets.push('GEMINI_API_KEY');
+
+  if (missingSecrets.length > 0) {
+    const errorMsg = `Missing required secrets in Cloudflare Worker: ${missingSecrets.join(', ')}. Please add them via wrangler secret put or Cloudflare Dashboard.`;
+    console.error(`[Worker] ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
