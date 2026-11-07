@@ -7,6 +7,7 @@
     "start": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",
+    "deploy": "astro build && wrangler pages deploy dist",
     "astro": "astro"
   },
   "dependencies": {
@@ -15,5 +16,8 @@
     "@supabase/supabase-js": "^2.49.1",
     "astro": "^5.4.1",
     "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.111.0"
   }
 }
