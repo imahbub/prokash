@@ -126,7 +126,16 @@ const timeAgo = formatRelativeTime(article.published_at || article.created_at);
     display: flex;
     flex-direction: column;
     background: var(--bg-surface);
-    transition: background-color 0.15s ease;
+    border: 1px solid var(--border-hairline);
+    border-radius: 6px;
+    padding: 1.25rem 1.35rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .nyt-article-card:hover {
+    border-color: var(--border-dark);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   }
 
   /* Kicker / Category Row */
@@ -277,9 +286,9 @@ const timeAgo = formatRelativeTime(article.published_at || article.created_at);
   /* Takeaways Highlight Box */
   .takeaways-box {
     background: var(--bg-subtle);
-    border-top: 1px solid var(--border-hairline);
-    border-bottom: 1px solid var(--border-hairline);
-    padding: 0.75rem 0.85rem;
+    border-left: 3px solid var(--accent-crimson);
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
     margin-bottom: 1rem;
   }
 
@@ -321,7 +330,7 @@ const timeAgo = formatRelativeTime(article.published_at || article.created_at);
     justify-content: space-between;
     align-items: center;
     margin-top: auto;
-    padding-top: 0.5rem;
+    padding-top: 0.75rem;
     font-size: 0.82rem;
     border-top: 1px dotted var(--border-hairline);
   }
@@ -350,23 +359,26 @@ const timeAgo = formatRelativeTime(article.published_at || article.created_at);
 
   /* Variant Specific Spacing */
   .variant-hero {
-    padding-bottom: 1.5rem;
+    padding: 1.65rem 1.65rem;
+  }
+
+  @media (max-width: 640px) {
+    .variant-hero {
+      padding: 1.15rem 1rem;
+    }
   }
 
   .variant-compact {
-    padding-bottom: 1.1rem;
-    margin-bottom: 1.1rem;
-    border-bottom: 1px solid var(--border-hairline);
+    padding: 1.1rem 1.15rem;
+    margin-bottom: 0.85rem;
   }
 
   .variant-compact:last-child {
-    border-bottom: none;
     margin-bottom: 0;
-    padding-bottom: 0;
   }
 
-  .variant-column {
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border-hairline);
+  .variant-column, .variant-standard {
+    padding: 1.35rem 1.25rem;
+    height: 100%;
   }
 </style>
