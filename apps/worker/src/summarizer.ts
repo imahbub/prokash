@@ -74,14 +74,26 @@ ${a.cleaned_text}
         },
       };
 
-      // Try gemini-3.5-flash
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`;
-      const res = await fetch(apiUrl, {
+      // Use gemini-3.5-flash-lite for high free-tier quota (1,500 RPD) and sub-second generation
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
+      let res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(30000),
       });
+
+      if (!res.ok && (res.status === 503 || res.status === 429)) {
+        console.warn(`[Summarizer] Primary model returned ${res.status}, retrying once with gemini-3.5-flash in 2s...`);
+        await new Promise(r => setTimeout(r, 2000));
+        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`;
+        res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(30000),
+        });
+      }
 
       if (!res.ok) {
         const errText = await res.text();

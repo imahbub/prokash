@@ -16,6 +16,40 @@ export interface FetchedFeedResult {
   notModified: boolean;
 }
 
+function extractRawContent(item: any): string | undefined {
+  const possible = [
+    item['content:encoded'],
+    item.content,
+    item.description,
+    item.summary,
+  ];
+  for (const p of possible) {
+    if (!p) continue;
+    if (typeof p === 'string' && p.trim().length > 0) return p.trim();
+    if (Array.isArray(p) && p.length > 0) {
+      const str = p.map(x => (typeof x === 'string' ? x : x?.['#text'] || '')).join(' ');
+      if (str.trim().length > 0) return str.trim();
+    }
+    if (typeof p === 'object' && p['#text']) return p['#text'].trim();
+  }
+  return undefined;
+}
+
+function extractRawImage(item: any): string | undefined {
+  if (item.enclosure) {
+    const enc = Array.isArray(item.enclosure) ? item.enclosure[0] : item.enclosure;
+    if (enc?.['@_url'] && (enc['@_type']?.startsWith('image/') || /\.(jpg|jpeg|png|webp)/i.test(enc['@_url']))) {
+      return enc['@_url'];
+    }
+  }
+  const media = item['media:content'] || item['media:thumbnail'];
+  if (media) {
+    const m = Array.isArray(media) ? media[0] : media;
+    if (m?.['@_url']) return m['@_url'];
+  }
+  return undefined;
+}
+
 export async function fetchFeed(source: NewsSource): Promise<FetchedFeedResult> {
   const headers: Record<string, string> = {
     'User-Agent': 'ProkashNewsAggregator/1.0 (+https://prokashnews.online; neutral news bot)',
@@ -82,6 +116,8 @@ export async function fetchFeed(source: NewsSource): Promise<FetchedFeedResult> 
             link: link.trim(),
             guid: typeof item.guid === 'string' ? item.guid : item.guid?.['#text'],
             pubDate: item.pubDate,
+            raw_content: extractRawContent(item),
+            raw_image_url: extractRawImage(item),
           });
         }
       }
@@ -114,6 +150,8 @@ export async function fetchFeed(source: NewsSource): Promise<FetchedFeedResult> 
             link: link.trim(),
             guid: entry.id,
             pubDate: entry.published || entry.updated,
+            raw_content: extractRawContent(entry),
+            raw_image_url: extractRawImage(entry),
           });
         }
       }

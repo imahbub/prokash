@@ -51,20 +51,16 @@ async function runPipeline(env: Env) {
   const rawCandidateItems: RawFeedItem[] = [];
 
   for (const res of feedResults) {
-    // Update source fetch metadata
-    await supabase
-      .from('sources')
-      .update({
-        last_etag: res.etag ?? null,
-        last_modified: res.lastModified ?? null,
-        last_fetched_at: new Date().toISOString(),
-      })
-      .eq('id', res.sourceId);
-
     if (res.items.length > 0) {
       rawCandidateItems.push(...res.items);
     }
   }
+
+  // Update last_fetched_at timestamp for all polled sources
+  await supabase
+    .from('sources')
+    .update({ last_fetched_at: new Date().toISOString() })
+    .in('id', (sources as NewsSource[]).map(s => s.id));
 
   console.log(`[Worker] Collected ${rawCandidateItems.length} raw feed items.`);
   if (rawCandidateItems.length === 0) {
@@ -103,18 +99,43 @@ async function runPipeline(env: Env) {
 
   const hashes = deduplicatedBatch.map(i => i.urlHash);
 
-  // Query existing articles in Supabase
-  const { data: existingRows, error: checkErr } = await supabase
-    .from('articles')
-    .select('url_hash')
-    .in('url_hash', hashes);
+  // Query existing articles in Supabase in chunks of 50 to prevent URI Too Long / fetch failed errors
+  const existingHashSet = new Set<string>();
+  const HASH_CHUNK_SIZE = 50;
+  for (let i = 0; i < hashes.length; i += HASH_CHUNK_SIZE) {
+    const chunk = hashes.slice(i, i + HASH_CHUNK_SIZE);
+    const { data: existingRows, error: checkErr } = await supabase
+      .from('articles')
+      .select('url_hash')
+      .in('url_hash', chunk);
 
-  if (checkErr) {
-    console.error('[Worker] Error checking existing url_hashes:', checkErr.message);
+    if (checkErr) {
+      console.error('[Worker] Error checking existing url_hashes chunk:', checkErr.message);
+    } else if (existingRows) {
+      for (const r of existingRows as any[]) {
+        existingHashSet.add(r.url_hash);
+      }
+    }
   }
 
-  const existingHashSet = new Set((existingRows || []).map((r: any) => r.url_hash));
   const newCandidateItems = deduplicatedBatch.filter(i => !existingHashSet.has(i.urlHash));
+
+  // Only safely update last_etag/last_modified for sources that have zero pending un-ingested candidates
+  // This prevents premature 304 lockouts where a source with few items is locked out before being ingested
+  const sourcesWithPendingNewItems = new Set(newCandidateItems.map(i => i.source_id));
+  for (const res of feedResults) {
+    if (res.notModified || !sourcesWithPendingNewItems.has(res.sourceId)) {
+      if (res.etag || res.lastModified) {
+        await supabase
+          .from('sources')
+          .update({
+            last_etag: res.etag ?? null,
+            last_modified: res.lastModified ?? null,
+          })
+          .eq('id', res.sourceId);
+      }
+    }
+  }
 
   console.log(`[Worker] After URL hash check: ${newCandidateItems.length} new items.`);
 
@@ -129,7 +150,7 @@ async function runPipeline(env: Env) {
     };
   }
 
-  // 4. Stage 2: Title SimHash Near-Duplicate Check
+  // 4. Stage 2: Title SimHash Near-Duplicate Check with Round-Robin Source Interleaving
   // Load recent articles from the last 24 hours
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: recentArticles } = await supabase
@@ -141,10 +162,35 @@ async function runPipeline(env: Env) {
     .map((r: any) => r.title_simhash)
     .filter(Boolean);
 
+  // Group new candidates by source to prevent high-volume sources (e.g. Prothom Alo) from starving other sources
+  const itemsBySource = new Map<string, typeof newCandidateItems>();
+  for (const item of newCandidateItems) {
+    if (!itemsBySource.has(item.source_id)) {
+      itemsBySource.set(item.source_id, []);
+    }
+    itemsBySource.get(item.source_id)!.push(item);
+  }
+
+  // Interleave candidates across sources round-robin style
+  const interleavedCandidates: typeof newCandidateItems = [];
+  const sourceQueues = Array.from(itemsBySource.values());
+  let hasMore = true;
+  let queueIndex = 0;
+  while (hasMore && interleavedCandidates.length < 60) {
+    hasMore = false;
+    for (const queue of sourceQueues) {
+      if (queueIndex < queue.length) {
+        interleavedCandidates.push(queue[queueIndex]);
+        hasMore = true;
+      }
+    }
+    queueIndex++;
+  }
+
   const itemsToExtract: RawFeedItem[] = [];
   const currentBatchSimHashes = [...existingSimHashes];
 
-  for (const item of newCandidateItems) {
+  for (const item of interleavedCandidates) {
     const simhash = computeTitleSimHash(item.title);
     if (!isNearDuplicate(simhash, currentBatchSimHashes, 4)) {
       itemsToExtract.push(item);
@@ -152,17 +198,19 @@ async function runPipeline(env: Env) {
     } else {
       console.log(`[Worker] Skipping near-duplicate wire story: "${item.title}"`);
     }
+    // Cap at 8 items per cron run to stay comfortably within execution time budgets
+    if (itemsToExtract.length >= 8) {
+      break;
+    }
   }
 
-  // Enforce batch cap per run (up to 8 items to stay well within Cloudflare Worker 30s CPU limit)
-  const cappedItems = itemsToExtract.slice(0, 8);
-  console.log(`[Worker] Extracting full text for ${cappedItems.length} candidate articles...`);
+  console.log(`[Worker] Extracting full text for ${itemsToExtract.length} round-robin candidate articles (${itemsToExtract.map(i => i.source_name).join(', ')})...`);
 
   // 5. Stage 3: DOM Content Extraction
   const extractedList: ExtractedArticle[] = [];
-  for (const item of cappedItems) {
+  for (const item of itemsToExtract) {
     const extracted = await extractArticle(item);
-    if (extracted && extracted.cleaned_text.length >= 80) {
+    if (extracted && extracted.cleaned_text.length >= 50) {
       extractedList.push(extracted);
     }
   }

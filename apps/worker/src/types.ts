@@ -30,6 +30,8 @@ export interface RawFeedItem {
   link: string;
   guid?: string;
   pubDate?: string;
+  raw_content?: string;
+  raw_image_url?: string;
 }
 
 export interface ExtractedArticle {
