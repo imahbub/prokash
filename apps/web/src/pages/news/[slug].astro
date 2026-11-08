@@ -23,17 +23,44 @@ try {
   } else {
     article = data as Article;
 
-    // Fetch up to 3 other articles for "আরও পড়ুন" (Read Next)
-    const { data: related } = await supabase
+    // Fetch related articles dynamically:
+    // 1. Priority 1: Up to 3 latest articles from the SAME category (excluding current)
+    const { data: categoryArticles } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('status', 'published')
+      .eq('category', article.category)
+      .neq('slug', slug)
+      .order('published_at', { ascending: false })
+      .limit(3);
+
+    // 2. Priority 2: Latest breaking/trending articles across all categories to complete 5 items
+    const { data: recentArticles } = await supabase
       .from('articles')
       .select('*')
       .eq('status', 'published')
       .neq('slug', slug)
-      .limit(3);
-    
-    if (related) {
-      relatedArticles = related as Article[];
+      .order('published_at', { ascending: false })
+      .limit(6);
+
+    const seenIds = new Set<string>([article.id]);
+    const list: Article[] = [];
+
+    for (const a of (categoryArticles || []) as Article[]) {
+      if (!seenIds.has(a.id)) {
+        seenIds.add(a.id);
+        list.push(a);
+      }
     }
+
+    for (const a of (recentArticles || []) as Article[]) {
+      if (!seenIds.has(a.id) && list.length < 5) {
+        seenIds.add(a.id);
+        list.push(a);
+      }
+    }
+
+    relatedArticles = list;
   }
 } catch (err: any) {
   fetchError = err.message || 'ডাটাবেজ সংযোগে সমস্যা হয়েছে';
@@ -53,6 +80,24 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryName = article ? categoryLabels[article.category] || article.category : '';
+
+function formatRelativeTime(dateString: string): string {
+  try {
+    const diff = (Date.now() - new Date(dateString).getTime()) / 1000;
+    if (diff < 3600) {
+      const mins = Math.max(1, Math.floor(diff / 60));
+      return `${mins} মিনিট আগে`;
+    }
+    if (diff < 86400) {
+      const hours = Math.floor(diff / 3600);
+      return `${hours} ঘণ্টা আগে`;
+    }
+    const days = Math.floor(diff / 86400);
+    return `${days} দিন আগে`;
+  } catch {
+    return '';
+  }
+}
 
 function formatDate(dateStr: string): string {
   try {
@@ -171,19 +216,29 @@ function formatDate(dateStr: string): string {
         <aside class="story-sidebar">
           <div class="sidebar-header">
             <h3 class="sidebar-title">আরও গুরুত্বপূর্ণ সংবাদ</h3>
-            <span class="rule"></span>
+            <span class="sidebar-badge">সর্বশেষ</span>
           </div>
           <div class="sidebar-stories">
-            {relatedArticles.map((rel) => (
-              <div class="sidebar-card">
-                <a href={`/news/${rel.slug}`} class="sidebar-headline">
-                  {rel.title_bn}
-                </a>
-                <div class="sidebar-meta">
-                  <span class="source-tag">{rel.source_name}</span>
+            {relatedArticles.map((rel) => {
+              const relCatName = categoryLabels[rel.category] || rel.category;
+              const relTimeAgo = formatRelativeTime(rel.published_at || rel.created_at);
+              return (
+                <div class="sidebar-card">
+                  <div class="sidebar-kicker">
+                    <a href={`/category/${rel.category}`} class="sidebar-category">
+                      {relCatName}
+                    </a>
+                    {relTimeAgo && <span class="sidebar-time">• {relTimeAgo}</span>}
+                  </div>
+                  <a href={`/news/${rel.slug}`} class="sidebar-headline">
+                    {rel.title_bn}
+                  </a>
+                  <div class="sidebar-meta">
+                    <span class="source-tag">সূত্র: {rel.source_name}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
       )}
@@ -453,6 +508,9 @@ function formatDate(dateStr: string): string {
   }
 
   .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1.25rem;
     border-bottom: 2px solid var(--border-dark);
     padding-bottom: 0.4rem;
@@ -467,30 +525,64 @@ function formatDate(dateStr: string): string {
     text-transform: uppercase;
   }
 
+  .sidebar-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent-crimson);
+    background: var(--bg-subtle);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid var(--border-hairline);
+  }
+
   .sidebar-stories {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1.15rem;
   }
 
   .sidebar-card {
-    padding-bottom: 1.25rem;
+    padding-bottom: 1.15rem;
     border-bottom: 1px solid var(--border-hairline);
   }
 
   .sidebar-card:last-child {
     border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .sidebar-kicker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+  }
+
+  .sidebar-category {
+    color: var(--accent-crimson);
+    text-decoration: none;
+  }
+
+  .sidebar-category:hover {
+    text-decoration: underline;
+  }
+
+  .sidebar-time {
+    color: var(--text-muted);
   }
 
   .sidebar-headline {
     font-family: var(--font-serif);
-    font-size: 1.08rem;
+    font-size: 1.05rem;
     line-height: 1.4;
     font-weight: 700;
     color: var(--text-headline);
     text-decoration: none;
     display: block;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.45rem;
+    transition: color 0.15s ease;
   }
 
   .sidebar-headline:hover {
