@@ -202,9 +202,9 @@ function formatDate(dateStr: string): string {
 <style>
   .article-broadsheet-container {
     display: grid;
-    grid-template-columns: 8fr 4fr;
-    gap: 3rem;
-    margin-top: 1rem;
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    gap: 2rem;
+    margin-top: 1.25rem;
   }
 
   @media (max-width: 900px) {
@@ -217,6 +217,16 @@ function formatDate(dateStr: string): string {
   /* Story Article */
   .nyt-story-article {
     background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 2.25rem 2.5rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  }
+
+  @media (max-width: 768px) {
+    .nyt-story-article {
+      padding: 1.35rem 1.15rem;
+    }
   }
 
   .story-kicker-bar {
@@ -319,21 +329,22 @@ function formatDate(dateStr: string): string {
     max-height: 480px;
     object-fit: cover;
     display: block;
-    border-radius: 2px;
+    border-radius: 6px;
   }
 
   .story-caption {
     font-size: 0.8rem;
     color: var(--text-muted);
-    padding-top: 0.4rem;
+    padding-top: 0.5rem;
     border-bottom: 1px solid var(--border-hairline);
-    padding-bottom: 0.4rem;
+    padding-bottom: 0.5rem;
   }
 
   /* Key Takeaways Box */
   .story-keypoints-box {
     background: var(--bg-subtle);
-    border-left: 3px solid var(--text-headline);
+    border-left: 3px solid var(--accent-crimson);
+    border-radius: 4px;
     padding: 1.25rem 1.5rem;
     margin-bottom: 2rem;
   }
@@ -426,16 +437,18 @@ function formatDate(dateStr: string): string {
 
   /* Sidebar */
   .story-sidebar {
-    border-left: 1px solid var(--border-hairline);
-    padding-left: 2rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.75rem 1.5rem;
+    height: fit-content;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
   }
 
   @media (max-width: 900px) {
     .story-sidebar {
-      border-left: none;
-      padding-left: 0;
-      border-top: 1px solid var(--border-hairline);
-      padding-top: 2rem;
+      margin-top: 1rem;
+      padding: 1.5rem 1.25rem;
     }
   }
 
