@@ -18,7 +18,7 @@ export interface FetchedFeedResult {
 
 export async function fetchFeed(source: NewsSource): Promise<FetchedFeedResult> {
   const headers: Record<string, string> = {
-    'User-Agent': 'ProkashNewsAggregator/1.0 (+https://prokash.news; neutral news bot)',
+    'User-Agent': 'ProkashNewsAggregator/1.0 (+https://prokashnews.online; neutral news bot)',
     'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
   };
 
