@@ -8,6 +8,8 @@ interface ArticleToPost {
   fb_caption_bn: string;
   image_url?: string | null;
   original_url?: string | null;
+  category: string;
+  created_at: string;
 }
 
 export async function syndicateToFacebook(
@@ -23,25 +25,69 @@ export async function syndicateToFacebook(
   }
 
   try {
-    // Select up to 2 unposted articles, ordered by created_at asc
-    const { data: articles, error: fetchErr } = await supabase
+    // 1. Approach A: Prune stale backlog (> 4 hours old) so old news doesn't delay breaking stories
+    const staleCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    const { error: pruneErr } = await supabase
       .from('articles')
-      .select('id, slug, title_bn, fb_caption_bn, image_url, original_url')
+      .update({ fb_post_id: 'skipped_stale' })
+      .is('fb_post_id', null)
+      .lt('created_at', staleCutoff);
+
+    if (pruneErr) {
+      console.warn('[Facebook] Warning pruning stale articles:', pruneErr.message);
+    }
+
+    // 2. Fetch fresh candidates ordered by created_at DESC (newest first)
+    const { data: candidates, error: fetchErr } = await supabase
+      .from('articles')
+      .select('id, slug, title_bn, fb_caption_bn, image_url, original_url, category, created_at')
       .eq('status', 'published')
       .is('fb_post_id', null)
-      .order('created_at', { ascending: true })
-      .limit(2);
+      .order('created_at', { ascending: false })
+      .limit(10);
 
     if (fetchErr) {
       console.error('[Facebook] Error fetching unposted articles:', fetchErr.message);
       return { postedCount: 0, errors: [fetchErr.message] };
     }
 
-    if (!articles || articles.length === 0) {
+    if (!candidates || candidates.length === 0) {
       return { postedCount: 0, errors: [] };
     }
 
-    for (const article of articles as ArticleToPost[]) {
+    // 3. Select up to 2 fresh stories prioritizing category diversity (e.g. 1 Tech + 1 National/International)
+    const MAX_POSTS_PER_RUN = 2;
+    const selectedArticles: ArticleToPost[] = [];
+    const seenCategories = new Set<string>();
+
+    for (const item of candidates as ArticleToPost[]) {
+      if (!seenCategories.has(item.category)) {
+        seenCategories.add(item.category);
+        selectedArticles.push(item);
+        if (selectedArticles.length >= MAX_POSTS_PER_RUN) break;
+      }
+    }
+
+    // Backfill if fewer than MAX_POSTS_PER_RUN were selected from distinct categories
+    if (selectedArticles.length < MAX_POSTS_PER_RUN) {
+      for (const item of candidates as ArticleToPost[]) {
+        if (!selectedArticles.some(s => s.id === item.id)) {
+          selectedArticles.push(item);
+          if (selectedArticles.length >= MAX_POSTS_PER_RUN) break;
+        }
+      }
+    }
+
+    console.log(`[Facebook] Selected ${selectedArticles.length} fresh articles for syndication:`, 
+      selectedArticles.map(a => `${a.category}: ${a.slug}`));
+
+    for (let i = 0; i < selectedArticles.length; i++) {
+      const article = selectedArticles[i];
+      if (i > 0) {
+        // Natural 1.5s pause between posts to respect Meta burst rate limits
+        await new Promise(r => setTimeout(r, 1500));
+      }
+
       try {
         const isLocal = env.PUBLIC_SITE_URL.includes('localhost');
         const articleUrl = `${env.PUBLIC_SITE_URL.replace(/\/$/, '')}/news/${article.slug}`;
